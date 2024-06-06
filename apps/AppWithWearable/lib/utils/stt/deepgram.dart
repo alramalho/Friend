@@ -1,14 +1,15 @@
 import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
 import 'package:friend_private/backend/preferences.dart';
 import 'package:friend_private/utils/ble/communication.dart';
 import 'package:friend_private/utils/stt/wav_bytes.dart';
-import 'package:flutter/material.dart';
 import 'package:instabug_flutter/instabug_flutter.dart';
 import 'package:tuple/tuple.dart';
+import 'package:web_socket_channel/io.dart';
 
 import '/backend/schema/structs/index.dart';
-import '/flutter_flow/flutter_flow_util.dart';
-import 'package:web_socket_channel/io.dart';
 
 // UUIDs for the specific service and characteristics
 const String audioServiceUuid = "19b10000-e8f2-537e-4f6c-d104768a1214";
@@ -62,6 +63,11 @@ Future<IOWebSocketChannel?> _initCustomStream(
   return channel;
 }
 
+bool isFullSentence(String text) {
+  debugPrint('text: $text');
+  return text.endsWith('.') || text.endsWith('!') || text.endsWith('?');
+}
+
 Future<IOWebSocketChannel> _initStream(
     void Function(List<dynamic>, String) speechFinalCallback,
     void Function(Map<int, String>, String) interimCallback,
@@ -69,11 +75,19 @@ Future<IOWebSocketChannel> _initStream(
     void Function(dynamic) onWebsocketConnectionFailed,
     void Function(int?, String?) onWebsocketConnectionClosed,
     void Function(dynamic) onWebsocketConnectionError) async {
-  final recordingsLanguage = SharedPreferencesUtil().recordingsLanguage;
-  // final recordingsLanguage = 'en';
+  // final recordingsLanguage = SharedPreferencesUtil().recordingsLanguage;
+  const recordingsLanguage = 'en';
+
+  String prettyJson(dynamic json) {
+      var spaces = ' ' * 4;
+      var encoder = JsonEncoder.withIndent(spaces);
+      return encoder.convert(json);
+  }
+
+  List<dynamic> currentPhraseWords = [];
 
   var serverUrl =
-      'wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=8000&language=$recordingsLanguage&model=nova-2-general&no_delay=true&endpointing=100&interim_results=false&smart_format=true&diarize=true';
+      'wss://api.deepgram.com/v1/listen?encoding=linear16&sample_rate=8000&language=$recordingsLanguage&model=nova-2-general&no_delay=true&endpointing=500&interim_results=false&smart_format=true&diarize=true&punctuate=true';
 
   debugPrint('Websocket Opening');
   IOWebSocketChannel channel = IOWebSocketChannel.connect(Uri.parse(serverUrl),
@@ -87,13 +101,21 @@ Future<IOWebSocketChannel> _initStream(
         if (parsedJson['channel'] == null || parsedJson['channel']['alternatives'] == null) return;
 
         final data = parsedJson['channel']['alternatives'][0];
-        // debugPrint('parsedJson: ${data.toString()}');
+        // debugPrint('parsedJson: ${prettyJson(parsedJson)}');
         final transcript = data['transcript'];
         final speechFinal = parsedJson['is_final'];
         if (transcript.length > 0) {
-          // debugPrint('Transcript: ${data['words']}');
+          debugPrint('Transcript: $transcript');
+          debugPrint('words: ${data['words']}');
           if (speechFinal) {
-            speechFinalCallback(data['words'], '');
+            debugPrint("Speech Final!");
+
+            currentPhraseWords.addAll(data['words']);
+            String currentPhrase = currentPhraseWords.map((word) => word['punctuated_word']).join(' ');
+            if (isFullSentence(currentPhrase)) {
+              speechFinalCallback(currentPhraseWords, '');
+              currentPhraseWords = [];
+            }
           } else {
             interimCallback({}, '');
           }

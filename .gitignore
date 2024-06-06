@@ -9,6 +9,9 @@ dump/
 *.wav
 node_modules
 yarn.lock
+.history
+.venv
+test/recordings
 
 # General
 .idea/

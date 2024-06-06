@@ -18,7 +18,7 @@ abstract class Env {
 
   // Pinecone
   @EnviedField(varName: 'PINECONE_API_KEY', obfuscate: true)
-  static String pineconeApiKey = _Env.pineconeApiKey;
+  static String pineconeApiKey = "_Env.pineconeApiKey";
 
   @EnviedField(varName: 'PINECONE_INDEX_URL', obfuscate: true)
   static String pineconeIndexUrl = _Env.pineconeIndexUrl;

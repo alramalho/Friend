@@ -1,0 +1,12 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+      {
+        "name": "Launch on Alexandre's iPhone",
+        "request": "launch",
+        "type": "dart",
+        "program": "lib/main.dart",
+        "deviceId": "00008110-001A0D1E1184801E"
+      }
+    ]
+  }
